@@ -1,4 +1,4 @@
-import sys, getopt, time
+import sys, getopt
 import numpy as np
 
 
@@ -82,7 +82,7 @@ def generate_keys(long_key: np.array):
     return np.array([key1, key2])
 
 
-def cipher(bitarray: np.array, keys: np.array, mode: str):
+def cipher(bitarray: np.array, keys: np.array, mode: str, logs: bool):
     # First iteration of algorithm
     ip = permute_array(bitarray, ip_vector)
     ip_halves = split_array(ip)
@@ -107,13 +107,49 @@ def cipher(bitarray: np.array, keys: np.array, mode: str):
     second_p4 = permute_array(sbox_bits2, p4_vector)
     xor4 = bitwise_xor(second_p4, left_switch)
     merge = merge_arrays(xor4, right_switch)
-    ciphertext = permute_array(merge, ip_inverse_vector)
+    result = permute_array(merge, ip_inverse_vector)
 
-    return ciphertext
+    if logs:
+        print("\nFirst Iteration")
+        print(f"IP: {ip}")
+        print(f"EP: {ep1}")
+        print(f"XOR: {xor1}")
+        print(f"S0/S1: {sbox_bits1}")
+        print(f"F: {first_p4}")
+        print(f"fk: {xor2}{ip_halves[1]}")
+        print(f"SW: {left_switch}{right_switch}")
+
+        print("\nSecond Iteration")
+        print(f"EP: {ep2}")
+        print(f"XOR: {xor3}")
+        print(f"S0/S1: {sbox_bits2}")
+        print(f"F: {second_p4}")
+        print(f"fk: {merge}")
+        print(f"InvIP: {result}")
+
+    return result        
+
+
+def bruteforce(filename: str):
+    # Try every possible key until one both ciphertexts are equal
+    with open(filename, 'r') as file:
+        for pair in file:
+            pt, ct = pair.strip('"ï»¿,\n').split(',')
+            ptarray = str_to_bitarray(pt)
+            ctarray = str_to_bitarray(ct)
+
+            for index in range(pow(2, 10)):
+                long_key = str_to_bitarray(np.binary_repr(index, width=10))
+                keys = generate_keys(long_key)
+                res = cipher(ptarray, keys, 'encrypt', False)
+
+                if (res == ctarray).all():
+                    print(f"{pt},{ct}: {long_key}")
+                    break
 
 
 if __name__ == "__main__":
-    syntax = 'k:i:m:'
+    syntax = 'k:e:d:b:'
     key = "0000000000"
     input = "00000000"
     mode = "encrypt"
@@ -123,19 +159,19 @@ if __name__ == "__main__":
         for o, a in opts:
             if o == '-k':
                 key = str_to_bitarray(str(a))
-            elif o == "-i":
+            elif o == "-e":
                 input = str_to_bitarray(str(a))
-            elif o == '-m':
-                mode = str(a)
-        
-        start = time.time()
-        
-        keys = generate_keys(key)
-        result = cipher(input, keys, mode)
-        print(result)
+                mode = 'encrypt'
+            elif o == '-d':
+                input = str_to_bitarray(str(a))
+                mode = 'decrypt'
+            elif o == '-b':
+                bruteforce(str(a))
+                sys.exit(0)
 
-        end = time.time()
-        print(f"{end - start:.8f} seconds")
+        keys = generate_keys(key)
+        result = cipher(input, keys, mode, True)
+        print(f"\nResult: {result}\n")
 
     except getopt.GetoptError as err:
         print('Error parsing args:', err)
