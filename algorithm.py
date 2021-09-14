@@ -133,10 +133,12 @@ def cipher(bitarray: np.array, keys: np.array, mode: str, logs: bool):
 def bruteforce(filename: str):
     # Try every possible key until one both ciphertexts are equal
     with open(filename, 'r') as file:
+        array_list = []
         for pair in file:
             pt, ct = pair.strip('"ï»¿,\n').split(',')
             ptarray = str_to_bitarray(pt)
             ctarray = str_to_bitarray(ct)
+            keyarray = []
 
             for index in range(pow(2, 10)):
                 long_key = str_to_bitarray(np.binary_repr(index, width=10))
@@ -144,8 +146,17 @@ def bruteforce(filename: str):
                 res = cipher(ptarray, keys, 'encrypt', False)
 
                 if (res == ctarray).all():
-                    print(f"{pt},{ct}: {long_key}")
-                    break
+                    keyarray.append(long_key.tolist())
+
+            array_list.append(keyarray)
+            common_keys = [value for value in array_list[0] if value in array_list[-1]]
+
+            if len(common_keys) == 1:
+                print(f"Common key: {common_keys.pop()}")
+                sys.exit(0)
+            else:
+                array_list.clear()
+                array_list.append(common_keys)
 
 
 if __name__ == "__main__":
